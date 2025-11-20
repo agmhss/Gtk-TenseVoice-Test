@@ -65,7 +65,7 @@
         <!-- Timer removed -->
         <button id="submitBtn">Submit Answer</button>
         <button id="skipBtn" class="btn-ghost">Skip</button>
-        <div style="margin-left:auto;font-size:.9rem;color:#667">Q <span id="qIndex">0</span>/<span id="qTotal">0</span></div>
+        <div style="margin-left:auto;font-size:.9rem;color:#667">Q <span id="qIndex">0</span>/<span id="qTotal">10</span></div>
       </div>
 
       <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
@@ -105,7 +105,6 @@
 <script>
 /* ======= Question bank ======= */
 const questions = [
-  // Subject-Verb Agreement
   { sentence: "She ____ to the store every Saturday.", chapter:"Subject-Verb Agreement", options:["go","goes","gone","going"], answer:1, explanation:"Third person singular (she) requires 'goes'." },
   { sentence: "They has finished their homework.", chapter:"Subject-Verb Agreement", options:["have","has","had","having"], answer:0, explanation:"Subject 'they' takes 'have' not 'has'." },
   { sentence: "He don't like vegetables.", chapter:"Subject-Verb Agreement", options:["doesn't","don't","didn't","not"], answer:0, explanation:"Third person singular (he) + negative → 'doesn't'." },
@@ -315,7 +314,7 @@ const questions = [
   { sentence:"I ................. your new coat!", chapter:"Verb Tense", options:["like","am liking","likes"], answer:0, explanation:"Like is a stative verb." },
   { sentence:"My husband and his colleague __________ golf whenever they are not too busy.", chapter:"Verb Tense", options:["plays","play","are playing"], answer:1, explanation:"Plural subject → play." },
   { sentence:"Does Rachel eat fish?", chapter:"Verb Tense", options:["Does she eat","Is she eating","Is she eat"], answer:0, explanation:"Habit question uses does." },
-  { sentence:"Do you always wear a tie to work?", chapter:"Verb Tense", options:["Are you always wearing","Do you always wear","Wear you always"], answer:1, explanation:"Simple present for habit." }
+  { sentence:"Do you always wear a tie to work?", chapter:"Verb Tense", options:["Are you always wearing","Do you always wear","Wear you always"], answer:1, explanation:"Simple present for habit." },
   { sentence:"I ___________ about a yellow unicorn last night.", chapter:"Verb Tense", options:["dreamed","slept","think"], answer:0, explanation:"Past simple of dream is dreamed." },
   { sentence:"Anna ___________ to class yesterday because she was at the hospital.", chapter:"Verb Tense", options:["didn't arrive","didn't take","didn't come"], answer:2, explanation:"Come to class is the correct verb." },
   { sentence:"It was snowing last night. It ___________ so cold!", chapter:"Verb Tense", options:["touched","felt","happened"], answer:1, explanation:"Feel describes temperature." },
@@ -345,7 +344,7 @@ const questions = [
   { sentence:"He __ very fast in the race this morning.", chapter:"Verb Tense", options:["ran","run","runs"], answer:0, explanation:"Past simple of run is ran." },
   { sentence:"She __ the newspaper on the train.", chapter:"Verb Tense", options:["read","readed","red"], answer:0, explanation:"Read (pronounced red) is correct spelling." },
   { sentence:"What film ... you ... last night?", chapter:"Verb Tense", options:["did, saw","did, see","-, saw"], answer:1, explanation:"Correct structure is did + base verb." },
-  { sentence:"I ... TV yesterday.", chapter:"Verb Tense", options:["watched","watched","watch"], answer:0, explanation:"Past simple watched." }
+  { sentence:"I ... TV yesterday.", chapter:"Verb Tense", options:["watched","watched","watch"], answer:0, explanation:"Past simple watched." },
   { sentence:"What __________ when you leave university? I want to go back to London.", chapter:"Verb Tense", options:["do you do","will you do","are you doing"], answer:1, explanation:"Future decision uses will." },
   { sentence:"If the plane gets in late I __________ my train connection.", chapter:"Verb Tense", options:["am missing","will miss","miss"], answer:1, explanation:"Future result uses will." },
   { sentence:"It's half past eight and my train leaves in fifteen minutes. I __________.", chapter:"Verb Tense", options:["will be","was late","am being late"], answer:0, explanation:"Prediction about the future uses will be." },
@@ -375,7 +374,7 @@ const questions = [
   { sentence:"OK, so it's 8.30, Central MTR station by the Hang Seng Bank. I___________ you tomorrow. Bye!", chapter:"Verb Tense", options:["am seeing","will see","saw"], answer:1, explanation:"Appointment confirmation uses will see." },
   { sentence:"______________ you help me? Yes, sure.", chapter:"Verb Tense", options:["Have","Will","Do"], answer:1, explanation:"Will is used for requests." },
   { sentence:"Can you lend me five hundred dollars? I __________ you back on Friday.", chapter:"Verb Tense", options:["will pay","paid","am paying"], answer:0, explanation:"Promise uses will pay." },
-  { sentence:"__________________ get married before you're 30?", chapter:"Verb Tense", options:["Will you","do you","have you"], answer:0, explanation:"Future question uses will." }
+  { sentence:"__________________ get married before you're 30?", chapter:"Verb Tense", options:["Will you","do you","have you"], answer:0, explanation:"Future question uses will." },
   { sentence:"I am _______ a sandwich now.", chapter:"Verb Tense", options:["eats","eating","not eat"], answer:1, explanation:"Present continuous uses am + verb-ing." },
   { sentence:"I am busy right now. I _______ breakfast.", chapter:"Verb Tense", options:["am have","am having","have"], answer:1, explanation:"Present continuous for something happening now." },
   { sentence:"My daughter _________ studying English at Istanbul University.", chapter:"Verb Tense", options:["is","does","do"], answer:0, explanation:"Present continuous uses is + verb-ing." },
