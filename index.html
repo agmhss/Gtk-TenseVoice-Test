@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Gtk Tense and Voices Test ✍️ – Improved</title>
+<style>
+  :root{--bg1:#f0f7ff;--card:#fff;--accent:#2b6cb0;--ok:#16a34a;--bad:#dc2626}
+  html,body{height:100%;margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,var(--bg1),#e6f0ff);display:flex;align-items:center;justify-content:center;padding:12px}
+  .wrap{width:100%;max-width:720px;background:var(--card);border-radius:14px;box-shadow:0 10px 30px rgba(20,30,60,.12);padding:18px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  header h1{margin:0;font-size:1.2rem;color:var(--accent)}
+  .meta{margin-left:auto;text-align:right;font-size:.9rem}
+  .score{font-weight:700;color:#0b6;display:block;font-size:1.4rem}
+  .card{padding:14px;border-radius:10px;border:1px solid #eef5ff;background:linear-gradient(180deg,#fff,#fbfdff);margin-bottom:12px}
+  .sentence{font-size:1.1rem;padding:10px;border-radius:8px;background:#f7fbff;border:1px dashed #dfeeff;min-height:48px;display:flex;align-items:center}
+  .options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .opt{padding:10px;border-radius:8px;border:1px solid #e6eefc;background:white;cursor:pointer;user-select:none}
+  .opt.selected{outline:3px solid rgba(43,108,176,.12)}
+  .opt.correct{border-color:var(--ok);background:rgba(16,185,129,.06)}
+  .opt.wrong{border-color:var(--bad);background:rgba(220,38,38,.04)}
+  .controls{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  button{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
+  .btn-ghost{background:#fff;border:1px solid #dbeefe;color:var(--accent)}
+  .timer{font-weight:700;padding:6px 10px;border-radius:8px;background:#f1f7ff;border:1px solid #dbeefe}
+  .progress{height:8px;background:#eef6ff;border-radius:8px;margin-top:8px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#2b6cb0,#4f9ae6);width:0%}
+  .feedback{margin-top:8px;font-weight:700;min-height:22px}
+  .hall{margin-top:10px;padding:10px;border-radius:8px;background:#fff7ef;border:1px solid #ffe8cc}
+  .hof-list{margin-top:8px}
+  .hof-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #fff2e6}
+  .certificate{display:none}
+  .hidden { display:none; }
+  .download-link{margin-top:10px;display:none}
+  @media(max-width:520px){
+    .options{grid-template-columns:1fr}
+    header{gap:8px}
+    .meta{text-align:left;margin-left:0}
+    /* Ensure player details inputs stack on small screens */
+    #playerDetails{flex-direction:column}
+    #playerDetails input{flex:1 1 100%; width:100%}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" role="application" aria-label="Grammar Guardian">
+    <header>
+      <div>
+        <h1>Gtk Tenses and Voices Test ✍️</h1>
+        <div style="font-size:.88rem;color:#556">Fix sentences — learn grammar in minutes</div>
+      </div>
+      <div class="meta" aria-live="polite">
+        <!-- We display both raw score and percentage in the UI -->
+        <div>Score: <span id="currentScore" class="score">0</span></div>
+        <!-- Removed best score display -->
+      </div>
+    </header>
+
+    <div class="card" id="questionCard" aria-live="polite">
+      <div class="sentence" id="sentence">Loading question...</div>
+
+      <div class="options" id="options"></div>
+
+      <div class="controls">
+        <!-- Timer removed -->
+        <button id="submitBtn">Submit Answer</button>
+        <button id="skipBtn" class="btn-ghost">Skip</button>
+        <div style="margin-left:auto;font-size:.9rem;color:#667">Q <span id="qIndex">0</span>/<span id="qTotal">0</span></div>
+      </div>
+
+      <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+    </div>
+
+    <!-- Player details for certificate: Name, Class, Section -->
+    <div id="playerDetails" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <input id="playerName" placeholder="Name" style="padding:8px;border-radius:6px;border:1px solid #e1eefc;flex:1 1 30%" maxlength="50" />
+      <input id="playerClass" placeholder="Class" style="padding:8px;border-radius:6px;border:1px solid #e1eefc;flex:1 1 30%" maxlength="20" />
+      <input id="playerSection" placeholder="Section" style="padding:8px;border-radius:6px;border:1px solid #e1eefc;flex:1 1 30%" maxlength="20" />
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button id="startBtn">Start Game</button>
+      <!-- Reset button removed -->
+      <button id="showHofBtn" class="btn-ghost">Show Hall of Fame</button>
+    </div>
+
+    <div class="hall hidden" id="hall" aria-live="polite">
+      <strong>🏆 Hall of Fame (Top 10)</strong>
+      <div class="hof-list" id="hofList"></div>
+
+      <div style="margin-top:10px">
+        <div style="font-size:.95rem">If you make the top score, enter your name:</div>
+        <input id="hofName" placeholder="Your name" style="padding:8px;border-radius:6px;border:1px solid #e1eefc;width:60%;margin-top:8px" maxlength="30"/>
+        <button id="saveHofBtn" style="margin-left:8px">Save</button>
+        <!-- Download HOF button removed -->
+      </div>
+    </div>
+
+    <canvas id="certificate" class="certificate" width="1000" height="700"></canvas>
+    <!-- link used to download the certificate -->
+    <a id="certDownloadLink" class="download-link" download="certificate.png">Download Certificate</a>
+  </div>
+
+<script>
+/* ======= Question bank ======= */
+const questions = [
+  // Subject-Verb Agreement
+  { sentence: "She ____ to the store every Saturday.", chapter:"Subject-Verb Agreement", options:["go","goes","gone","going"], answer:1, explanation:"Third person singular (she) requires 'goes'." },
+  { sentence: "They has finished their homework.", chapter:"Subject-Verb Agreement", options:["have","has","had","having"], answer:0, explanation:"Subject 'they' takes 'have' not 'has'." },
+  { sentence: "He don't like vegetables.", chapter:"Subject-Verb Agreement", options:["doesn't","don't","didn't","not"], answer:0, explanation:"Third person singular (he) + negative → 'doesn't'." },
+  { sentence: "There is many books on the table.", chapter:"Subject-Verb Agreement", options:["are","is","was","were"], answer:0, explanation:"Plural 'books' needs 'are'." },
+  { sentence: "He ____ a car.", chapter:"Subject-Verb Agreement", options:["drives","drive","driven","drove"], answer:0, explanation:"Third person singular 'he' takes 'drives'." },
+  { sentence: "My friends ____ going to the party.", chapter:"Subject-Verb Agreement", options:["is","are","am","was"], answer:1, explanation:"Plural subject 'friends' takes 'are'." },
+  { sentence: "The team ____ playing well.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Collective noun 'team' is treated as singular here, so 'is'." },
+  { sentence: "A bouquet of flowers ____ on the table.", chapter:"Subject-Verb Agreement", options:["is","are","were","have been"], answer:0, explanation:"The subject 'bouquet' is singular, so 'is'." },
+  { sentence: "Either the teachers or the principal ____ attending.", chapter:"Subject-Verb Agreement", options:["is","are","were","was"], answer:0, explanation:"When subjects are joined by 'or', the verb agrees with the nearest subject 'principal', so 'is'." },
+  { sentence: "There ____ a lot of people at the concert.", chapter:"Subject-Verb Agreement", options:["was","were","has","have"], answer:1, explanation:"The plural 'people' needs 'were'." },
+  { sentence: "She ____ to the store every Saturday.", chapter:"Subject-Verb Agreement", options:["go","goes","gone","going"], answer:1, explanation:"Third person singular (she) requires 'goes'." },
+  { sentence: "The dog ____ loudly at strangers.", chapter:"Subject-Verb Agreement", options:["barks","bark","barking","barked"], answer:0, explanation:"Singular subject 'dog' takes singular verb 'barks'." },
+  { sentence: "They ____ very well.", chapter:"Subject-Verb Agreement", options:["sing","sings","singing","sang"], answer:0, explanation:"Plural subject 'they' takes plural verb 'sing'." },
+  { sentence: "He ____ his homework every evening.", chapter:"Subject-Verb Agreement", options:["do","does","doing","done"], answer:1, explanation:"Third person singular 'he' takes 'does' not 'do'." },
+  { sentence: "My parents ____ in Mumbai.", chapter:"Subject-Verb Agreement", options:["live","lives","living","lived"], answer:0, explanation:"Plural noun 'parents' takes plural verb 'live'." },
+  { sentence: "Each of the boys ____ given a prize.", chapter:"Subject-Verb Agreement", options:["was","were","are","be"], answer:0, explanation:"'Each' is singular, so the verb is 'was'." },
+  { sentence: "The team ____ winning the match.", chapter:"Subject-Verb Agreement", options:["is","are","was","were"], answer:0, explanation:"Collective noun 'team' is treated as singular here." },
+  { sentence: "Either Ravi or his friends ____ going to the party.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"When subjects are joined by 'or', the verb agrees with the nearer subject ('friends')." },
+  { sentence: "The children ____ playing in the park.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"Plural subject 'children' takes plural verb 'are'." },
+  { sentence: "The list of items ____ on the table.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Main subject is 'list' (singular), so use 'is'." },
+  { sentence: "Either of the books ____ useful.", chapter:"Subject-Verb Agreement", options:["is","are","were","be"], answer:0, explanation:"'Either' is singular, so the verb is 'is'." },
+  { sentence: "Neither of them ____ attending today.", chapter:"Subject-Verb Agreement", options:["is","are","be","were"], answer:0, explanation:"'Neither' is singular, so 'is' is correct." },
+  { sentence: "Ten kilometers ____ a long distance to walk.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Units of measurement are treated as singular." },
+  { sentence: "One of my friends ____ going abroad.", chapter:"Subject-Verb Agreement", options:["is","are","were","be"], answer:0, explanation:"The subject is 'one', which is singular." },
+  { sentence: "Mathematics ____ an interesting subject.", chapter:"Subject-Verb Agreement", options:["is","are","have","were"], answer:0, explanation:"Certain subjects like 'mathematics' are singular in form." },
+  { sentence: "The police ____ investigating the matter.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"'Police' is plural, so 'are' is correct." },
+  { sentence: "Everyone ____ excited about the trip.", chapter:"Subject-Verb Agreement", options:["is","are","was","were"], answer:0, explanation:"Indefinite pronouns like 'everyone' are singular." },
+  { sentence: "The quality of the apples ____ good.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Subject is 'quality' (singular), not 'apples'." },
+  { sentence: "My trousers ____ too tight.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"'Trousers' is always plural, so 'are' is correct." },
+  { sentence: "A number of students ____ absent today.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"'A number of' takes plural verb 'are'." },
+  { sentence: "The number of students ____ increasing every year.", chapter:"Subject-Verb Agreement", options:["is","are","have","were"], answer:0, explanation:"'The number of' takes singular verb 'is'." },
+  { sentence: "Either my mother or my father ____ coming.", chapter:"Subject-Verb Agreement", options:["is","are","be","were"], answer:0, explanation:"The nearer subject 'father' is singular, so use 'is'." },
+  { sentence: "Bread and butter ____ my favorite breakfast.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Bread and butter together form a single dish — singular." },
+  { sentence: "There ____ a book on the table.", chapter:"Subject-Verb Agreement", options:["is","are","were","have"], answer:0, explanation:"Singular 'book' takes 'is'." },
+  { sentence: "There ____ many students in the class.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"Plural 'students' takes 'are'." },
+  { sentence: "None of the work ____ finished.", chapter:"Subject-Verb Agreement", options:["is","are","have","were"], answer:0, explanation:"'Work' is uncountable and singular." },
+  { sentence: "Neither he nor his brothers ____ guilty.", chapter:"Subject-Verb Agreement", options:["are","is","be","was"], answer:0, explanation:"Nearest subject 'brothers' (plural) takes 'are'." },
+  { sentence: "Each of the players ____ done well.", chapter:"Subject-Verb Agreement", options:["has","have","were","are"], answer:0, explanation:"'Each' is singular, so 'has' fits." },
+  { sentence: "The news ____ shocking.", chapter:"Subject-Verb Agreement", options:["is","are","was","have"], answer:0, explanation:"'News' is singular even though it ends with 's'." },
+  { sentence: "Politics ____ a tricky subject.", chapter:"Subject-Verb Agreement", options:["is","are","were","be"], answer:0, explanation:"Words ending in 's' like 'politics' are singular in meaning." },
+  { sentence: "Fifty rupees ____ too much for this toy.", chapter:"Subject-Verb Agreement", options:["is","are","have","were"], answer:0, explanation:"Amounts of money are treated as singular." },
+  { sentence: "None ____ allowed to enter.", chapter:"Subject-Verb Agreement", options:["is","are","be","were"], answer:0, explanation:"'None' can be singular or plural; here, singular fits contextually." },
+  { sentence: "The scissors ____ sharp.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"'Scissors' is plural in form — use 'are'." },
+  { sentence: "Her advice ____ always helpful.", chapter:"Subject-Verb Agreement", options:["is","are","be","were"], answer:0, explanation:"'Advice' is uncountable and takes 'is'." },
+  { sentence: "The jury ____ divided in their opinion.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"'Jury' is plural when acting as individuals." },
+  { sentence: "One of the girls ____ missing.", chapter:"Subject-Verb Agreement", options:["is","are","were","be"], answer:0, explanation:"Main subject is 'one' — singular." },
+  { sentence: "My family ____ going on vacation.", chapter:"Subject-Verb Agreement", options:["is","are","was","be"], answer:0, explanation:"Family as a single unit is singular." },
+  { sentence: "Neither the manager nor the workers ____ available.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"The nearer plural subject 'workers' takes 'are'." },
+  { sentence: "The committee ____ agreed on the decision.", chapter:"Subject-Verb Agreement", options:["has","have","is","were"], answer:0, explanation:"'Committee' as a single group uses singular verb 'has'." },
+  { sentence: "Many a student ____ failed this test.", chapter:"Subject-Verb Agreement", options:["has","have","was","are"], answer:0, explanation:"'Many a' takes singular verb form 'has'." },
+  { sentence: "Neither of the answers ____ correct.", chapter:"Subject-Verb Agreement", options:["is","are","was","be"], answer:0, explanation:"'Neither' is singular." },
+  { sentence: "Some of the milk ____ gone sour.", chapter:"Subject-Verb Agreement", options:["has","have","is","were"], answer:0, explanation:"'Milk' is uncountable — singular 'has' fits." },
+  { sentence: "All the boys ____ ready for the match.", chapter:"Subject-Verb Agreement", options:["are","is","was","has"], answer:0, explanation:"Plural 'boys' takes 'are'." },
+  { sentence: "My brother and I ____ going to the market.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"Compound subject with 'and' takes plural verb 'are'." },
+  { sentence: "The luggage ____ heavy.", chapter:"Subject-Verb Agreement", options:["is","are","be","were"], answer:0, explanation:"'Luggage' is uncountable — singular verb 'is'." },
+  { sentence: "Each student and teacher ____ present.", chapter:"Subject-Verb Agreement", options:["is","are","was","be"], answer:0, explanation:"When 'each' precedes a compound subject, verb is singular." },
+  { sentence: "The pair of shoes ____ new.", chapter:"Subject-Verb Agreement", options:["is","are","was","were"], answer:0, explanation:"'Pair' is singular even if it refers to two items." },
+  { sentence: "Half of the work ____ completed.", chapter:"Subject-Verb Agreement", options:["is","are","were","be"], answer:0, explanation:"'Work' is singular uncountable noun." },
+  { sentence: "The audience ____ clapping loudly.", chapter:"Subject-Verb Agreement", options:["is","are","was","were"], answer:0, explanation:"'Audience' considered as one unit — singular." },
+  { sentence: "The data ____ being analyzed.", chapter:"Subject-Verb Agreement", options:["are","is","was","be"], answer:0, explanation:"'Data' is plural of 'datum', so plural verb 'are' fits." },
+  { sentence: "Where ____ my keys?", chapter:"Subject-Verb Agreement", options:["are","is","be","was"], answer:0, explanation:"'Keys' plural → use 'are'." },
+  { sentence: "Each of them ____ done their duty.", chapter:"Subject-Verb Agreement", options:["has","have","were","be"], answer:0, explanation:"'Each' is singular — use 'has'." },
+  { sentence: "None of the boys ____ finished the race yet.", chapter:"Subject-Verb Agreement", options:["have","has","was","be"], answer:0, explanation:"When 'none' refers to plural countable nouns, use plural verb 'have'." },
+  { sentence: "I have went to the market.", chapter:"Verb Tense", options:["went","gone","go","been"], answer:1, explanation:"Present perfect requires past participle 'gone'." },
+  { sentence: "She ____ breakfast already.", chapter:"Verb Tense", options:["ate","eaten","eats","is eating"], answer:1, explanation:"Present perfect uses past participle 'eaten'." },
+  { sentence: "They ____ to school when it started raining.", chapter:"Verb Tense", options:["goes","were going","went","gone"], answer:1, explanation:"Past continuous uses 'were going'." },
+  { sentence: "I ____ here since 2010.", chapter:"Verb Tense", options:["have lived","lived","live","am living"], answer:0, explanation:"'Since' with present perfect → 'have lived'." },
+  { sentence: "By next year, she ____ from college.", chapter:"Verb Tense", options:["will graduate","has graduated","will have graduated","graduates"], answer:2, explanation:"Future perfect → 'will have graduated'." },
+  { sentence: "He ____ a book every night.", chapter:"Verb Tense", options:["read","reads","reading","is reading"], answer:1, explanation:"Habitual action uses simple present 'reads'." },
+  { sentence: "They ____ the project before the deadline last week.", chapter:"Verb Tense", options:["finish","finished","have finished","had finished"], answer:3, explanation:"Past perfect describes action before a past point: 'had finished'." },
+  { sentence: "The sun ____ when we started our hike.", chapter:"Verb Tense", options:["rises","rose","had risen","is rising"], answer:2, explanation:"Past perfect describes an action completed before another past action: 'had risen'." },
+  { sentence: "I ____ soccer tomorrow.", chapter:"Verb Tense", options:["will play","play","played","am playing"], answer:0, explanation:"Future tense: 'will play'." },
+  { sentence: "We ____ each other since last year.", chapter:"Verb Tense", options:["haven't seen","didn't see","don't see","won't see"], answer:0, explanation:"Present perfect negative uses 'haven't seen'." },
+  { sentence: "I have went to the market.", chapter:"Verb Tense", options:["went","gone","go","been"], answer:1, explanation:"Present perfect requires past participle 'gone'." },
+  { sentence: "She ____ to the gym every morning.", chapter:"Verb Tense", options:["goes","gone","go","going"], answer:0, explanation:"Simple present tense for habitual action: 'She goes'." },
+  { sentence: "They ____ dinner when we arrived.", chapter:"Verb Tense", options:["were having","have","had","are having"], answer:0, explanation:"Past continuous describes an action in progress in the past." },
+  { sentence: "He ____ a letter yesterday.", chapter:"Verb Tense", options:["wrote","writes","was writing","has written"], answer:0, explanation:"Simple past indicates a completed action in the past." },
+  { sentence: "We ____ this movie before.", chapter:"Verb Tense", options:["have seen","see","saw","had saw"], answer:0, explanation:"Present perfect shows experience at an unspecified time." },
+  { sentence: "She ____ in London since 2010.", chapter:"Verb Tense", options:["has lived","lived","is living","was living"], answer:0, explanation:"Present perfect continuous shows action continuing up to now." },
+  { sentence: "The train ____ when we reached the station.", chapter:"Verb Tense", options:["had left","has left","left","was leaving"], answer:0, explanation:"Past perfect expresses an action completed before another past event." },
+  { sentence: "By next year, they ____ their course.", chapter:"Verb Tense", options:["will have completed","have completed","completed","complete"], answer:0, explanation:"Future perfect shows an action that will be finished before a future time." },
+  { sentence: "I ____ for my friend for two hours.", chapter:"Verb Tense", options:["have been waiting","am waiting","was waiting","waited"], answer:0, explanation:"Present perfect continuous shows duration continuing to the present." },
+  { sentence: "She ____ her homework now.", chapter:"Verb Tense", options:["is doing","does","was doing","did"], answer:0, explanation:"Present continuous indicates an action happening right now." },
+  { sentence: "They ____ to the zoo tomorrow.", chapter:"Verb Tense", options:["will go","goes","went","going"], answer:0, explanation:"Future simple is used for planned future actions." },
+  { sentence: "He ____ for the exam last night.", chapter:"Verb Tense", options:["was studying","is studying","has studied","studies"], answer:0, explanation:"Past continuous shows ongoing past action." },
+  { sentence: "The teacher ____ already ____ the lesson.", chapter:"Verb Tense", options:["has, explained","have, explained","is, explaining","was, explaining"], answer:0, explanation:"Present perfect 'has explained' shows completion." },
+  { sentence: "We ____ dinner before you came.", chapter:"Verb Tense", options:["had eaten","have eaten","ate","were eating"], answer:0, explanation:"Past perfect before another past event." },
+  { sentence: "The sun ____ in the east.", chapter:"Verb Tense", options:["rises","rise","is rising","has risen"], answer:0, explanation:"Simple present is used for universal truths." },
+  { sentence: "She ____ to dance when she was five.", chapter:"Verb Tense", options:["learned","learn","was learning","has learned"], answer:0, explanation:"Simple past for completed past action." },
+  { sentence: "I ____ a new phone last week.", chapter:"Verb Tense", options:["bought","buy","have bought","was buying"], answer:0, explanation:"Simple past — definite time in the past." },
+  { sentence: "They ____ here for an hour before it rained.", chapter:"Verb Tense", options:["had been sitting","have been sitting","were sitting","sat"], answer:0, explanation:"Past perfect continuous shows duration before another past event." },
+  { sentence: "He ____ to the office yet.", chapter:"Verb Tense", options:["has not gone","did not go","was not going","is not going"], answer:0, explanation:"'Has not gone' = present perfect negative (not yet)." },
+  { sentence: "I ____ my homework when the power went off.", chapter:"Verb Tense", options:["was doing","did","am doing","had done"], answer:0, explanation:"Past continuous interrupted by another past action." },
+  { sentence: "She ____ already ____ her project.", chapter:"Verb Tense", options:["has, finished","have, finished","is, finishing","was, finished"], answer:0, explanation:"Present perfect — recently completed action." },
+  { sentence: "By 2026, I ____ my studies.", chapter:"Verb Tense", options:["will have completed","have completed","complete","completed"], answer:0, explanation:"Future perfect — will be completed before a specific time." },
+  { sentence: "He ____ breakfast at 8 a.m. every day.", chapter:"Verb Tense", options:["eats","eat","has eaten","is eating"], answer:0, explanation:"Simple present for habitual action." },
+  { sentence: "They ____ when the bell rang.", chapter:"Verb Tense", options:["were talking","talk","talked","have talked"], answer:0, explanation:"Past continuous interrupted by a past event." },
+  { sentence: "I ____ my leg while playing football.", chapter:"Verb Tense", options:["hurt","hurts","have hurt","am hurting"], answer:0, explanation:"Simple past for completed action in the past." },
+  { sentence: "She ____ many places recently.", chapter:"Verb Tense", options:["has visited","visited","was visiting","visits"], answer:0, explanation:"Present perfect for recent experiences." },
+  { sentence: "They ____ the results by next week.", chapter:"Verb Tense", options:["will have announced","have announced","announce","announced"], answer:0, explanation:"Future perfect — before a future point in time." },
+  { sentence: "He ____ to school before it started raining.", chapter:"Verb Tense", options:["had gone","has gone","went","was going"], answer:0, explanation:"Past perfect before another past action." },
+  { sentence: "We ____ the project for months.", chapter:"Verb Tense", options:["have been working on","are working on","worked on","were working on"], answer:0, explanation:"Present perfect continuous shows ongoing work till now." },
+  { sentence: "I ____ a letter now.", chapter:"Verb Tense", options:["am writing","was writing","write","written"], answer:0, explanation:"Present continuous — action happening right now." },
+  { sentence: "He ____ in this city since 2015.", chapter:"Verb Tense", options:["has lived","lived","was living","lives"], answer:0, explanation:"Present perfect — duration continuing to present." },
+  { sentence: "They ____ a new house last month.", chapter:"Verb Tense", options:["built","build","have built","were building"], answer:0, explanation:"Simple past for completed action." },
+  { sentence: "The bus ____ before I reached the stop.", chapter:"Verb Tense", options:["had left","left","has left","was leaving"], answer:0, explanation:"Past perfect before another past action." },
+  { sentence: "We ____ lunch when he arrived.", chapter:"Verb Tense", options:["were having","had","have had","has"], answer:0, explanation:"Past continuous — action in progress at a time in the past." },
+  { sentence: "She ____ all morning.", chapter:"Verb Tense", options:["has been studying","was studying","is studying","studies"], answer:0, explanation:"Present perfect continuous shows duration." },
+  { sentence: "He ____ in the rain yesterday.", chapter:"Verb Tense", options:["was walking","walks","has walked","walked"], answer:0, explanation:"Past continuous for ongoing past action." },
+  { sentence: "They ____ a car next month.", chapter:"Verb Tense", options:["will buy","bought","buy","have bought"], answer:0, explanation:"Future simple — planned future action." },
+  { sentence: "By the time you arrive, we ____ dinner.", chapter:"Verb Tense", options:["will have eaten","ate","have eaten","are eating"], answer:0, explanation:"Future perfect shows completion before another future event." },
+  { sentence: "He ____ his job two years ago.", chapter:"Verb Tense", options:["left","has left","leaves","was leaving"], answer:0, explanation:"Simple past with definite time." },
+  { sentence: "She ____ her phone yesterday.", chapter:"Verb Tense", options:["lost","has lost","loses","was losing"], answer:0, explanation:"Simple past for completed event." },
+  { sentence: "They ____ to music when I entered.", chapter:"Verb Tense", options:["were listening","listened","are listening","listen"], answer:0, explanation:"Past continuous action interrupted by another event." },
+  { sentence: "I ____ this movie twice.", chapter:"Verb Tense", options:["have seen","saw","see","am seeing"], answer:0, explanation:"Present perfect for experience without time reference." },
+  { sentence: "She ____ already ____ her work.", chapter:"Verb Tense", options:["has, finished","have, finished","is, finishing","was, finished"], answer:0, explanation:"Present perfect — action recently completed." },
+  { sentence: "He ____ a book when I called him.", chapter:"Verb Tense", options:["was reading","read","reads","has read"], answer:0, explanation:"Past continuous — ongoing past action." },
+  { sentence: "We ____ to the museum last Sunday.", chapter:"Verb Tense", options:["went","have gone","go","were going"], answer:0, explanation:"Simple past — definite time reference." },
+  { sentence: "The baby ____ for two hours.", chapter:"Verb Tense", options:["has been sleeping","was sleeping","is sleeping","slept"], answer:0, explanation:"Present perfect continuous for duration." },
+  { sentence: "They ____ in the park when it started raining.", chapter:"Verb Tense", options:["were playing","played","are playing","have played"], answer:0, explanation:"Past continuous interrupted by past event." },
+  { sentence: "I ____ my keys!", chapter:"Verb Tense", options:["have lost","lost","lose","am losing"], answer:0, explanation:"Present perfect shows recent event relevant to present." },
+  { sentence: "He ____ for the exam all night.", chapter:"Verb Tense", options:["has been studying","was studying","is studying","studies"], answer:0, explanation:"Present perfect continuous — ongoing till now." },
+  { sentence: "By next month, she ____ her book.", chapter:"Verb Tense", options:["will have finished","finished","finishes","has finished"], answer:0, explanation:"Future perfect — completed before a future time." },
+  { sentence: "The match ____ at 6 p.m.", chapter:"Verb Tense", options:["starts","start","is starting","started"], answer:0, explanation:"Timetabled future event uses simple present." },
+  { sentence: "He ____ lunch before going to work.", chapter:"Verb Tense", options:["had eaten","ate","has eaten","was eating"], answer:0, explanation:"Past perfect — completed before another past action." },
+  { sentence:"The letter ____ by him.", chapter:"Voice", options:["is written","was wrote","wrote","written"], answer:0, explanation:"Passive voice uses 'is written'." },
+  { sentence:"The cake ____ by my mother.", chapter:"Voice", options:["is bake","was baked","were baked","is baked"], answer:1, explanation:"Past passive form: 'was baked'." },
+  { sentence:"They will ____ the work.", chapter:"Voice", options:["complete","be completed","completed","be completing"], answer:0, explanation:"Future active voice uses 'will complete'." },
+  { sentence:"The house ____ recently.", chapter:"Voice", options:["built","was built","is building","has built"], answer:1, explanation:"Past passive uses 'was built'." },
+  { sentence: "The teacher teaches English.", chapter:"Voice", options:["English is taught by the teacher.","English was taught by the teacher.","English has been taught by the teacher.","English will be taught by the teacher."], answer:0, explanation:"Simple present passive: 'is/are + past participle' → 'English is taught'." },
+  { sentence: "He wrote a letter.", chapter:"Voice", options:["A letter was written by him.","A letter is written by him.","A letter has been written by him.","A letter will be written by him."], answer:0, explanation:"Simple past passive: 'was/were + past participle' → 'was written'." },
+  { sentence: "They are cleaning the room.", chapter:"Voice", options:["The room is being cleaned by them.","The room was cleaned by them.","The room has been cleaned by them.","The room will be cleaned by them."], answer:0, explanation:"Present continuous passive: 'is/are being + past participle'." },
+  { sentence: "She will complete the project.", chapter:"Voice", options:["The project will be completed by her.","The project is completed by her.","The project has been completed by her.","The project was completed by her."], answer:0, explanation:"Future passive: 'will be + past participle' → 'will be completed'." },
+  { sentence: "They have finished the work.", chapter:"Voice", options:["The work has been finished by them.","The work is finished by them.","The work will be finished by them.","The work was finished by them."], answer:0, explanation:"Present perfect passive: 'has/have been + past participle'." },
+  { sentence: "The manager is reviewing the report.", chapter:"Voice", options:["The report is being reviewed by the manager.","The report was reviewed by the manager.","The report has been reviewed by the manager.","The report will be reviewed by the manager."], answer:0, explanation:"Present continuous passive → 'is being reviewed'." },
+  { sentence: "Someone stole my bag.", chapter:"Voice", options:["My bag was stolen.","My bag is stolen.","My bag has been stolen.","My bag will be stolen."], answer:0, explanation:"Simple past passive: 'was/were + past participle'." },
+  { sentence: "They make toys here.", chapter:"Voice", options:["Toys are made here.","Toys were made here.","Toys have been made here.","Toys will be made here."], answer:0, explanation:"Simple present passive → 'are made'." },
+  { sentence: "He has repaired the car.", chapter:"Voice", options:["The car has been repaired by him.","The car was repaired by him.","The car will be repaired by him.","The car is repaired by him."], answer:0, explanation:"Present perfect passive → 'has been repaired'." },
+  { sentence: "She is writing a poem.", chapter:"Voice", options:["A poem is being written by her.","A poem was written by her.","A poem has been written by her.","A poem will be written by her."], answer:0, explanation:"Present continuous passive → 'is being written'." },
+  { sentence: "The police arrested the thief.", chapter:"Voice", options:["The thief was arrested by the police.","The thief is arrested by the police.","The thief will be arrested by the police.","The thief has been arrested by the police."], answer:0, explanation:"Simple past passive: 'was arrested'." },
+  { sentence: "He will deliver the message.", chapter:"Voice", options:["The message will be delivered by him.","The message was delivered by him.","The message is delivered by him.","The message has been delivered by him."], answer:0, explanation:"Future passive → 'will be delivered'." },
+  { sentence: "She cooks food every day.", chapter:"Voice", options:["Food is cooked by her every day.","Food was cooked by her every day.","Food will be cooked by her every day.","Food has been cooked by her every day."], answer:0, explanation:"Simple present passive → 'is cooked'." },
+  { sentence: "They are building a new bridge.", chapter:"Voice", options:["A new bridge is being built by them.","A new bridge was built by them.","A new bridge has been built by them.","A new bridge will be built by them."], answer:0, explanation:"Present continuous passive → 'is being built'." },
+  { sentence: "He has cleaned the room.", chapter:"Voice", options:["The room has been cleaned by him.","The room was cleaned by him.","The room will be cleaned by him.","The room is cleaned by him."], answer:0, explanation:"Present perfect passive → 'has been cleaned'." },
+  { sentence: "They will open the shop soon.", chapter:"Voice", options:["The shop will be opened soon.","The shop is opened soon.","The shop was opened soon.","The shop has been opened soon."], answer:0, explanation:"Future simple passive → 'will be opened'." },
+  { sentence: "We were watching a movie.", chapter:"Voice", options:["A movie was being watched by us.","A movie is being watched by us.","A movie has been watched by us.","A movie will be watched by us."], answer:0, explanation:"Past continuous passive → 'was being watched'." },
+  { sentence: "The students have written the exam.", chapter:"Voice", options:["The exam has been written by the students.","The exam was written by the students.","The exam will be written by the students.","The exam is written by the students."], answer:0, explanation:"Present perfect passive → 'has been written'." },
+  { sentence: "They cleaned the classroom.", chapter:"Voice", options:["The classroom was cleaned by them.","The classroom is cleaned by them.","The classroom has been cleaned by them.","The classroom will be cleaned by them."], answer:0, explanation:"Simple past passive → 'was cleaned'." },
+  { sentence: "He is repairing the watch.", chapter:"Voice", options:["The watch is being repaired by him.","The watch was repaired by him.","The watch has been repaired by him.","The watch will be repaired by him."], answer:0, explanation:"Present continuous passive → 'is being repaired'." },
+  { sentence: "She sings a song.", chapter:"Voice", options:["A song is sung by her.","A song was sung by her.","A song has been sung by her.","A song will be sung by her."], answer:0, explanation:"Simple present passive → 'is sung'." },
+  { sentence: "The child broke the window.", chapter:"Voice", options:["The window was broken by the child.","The window is broken by the child.","The window has been broken by the child.","The window will be broken by the child."], answer:0, explanation:"Simple past passive → 'was broken'." },
+  { sentence: "He will write a novel.", chapter:"Voice", options:["A novel will be written by him.","A novel is written by him.","A novel was written by him.","A novel has been written by him."], answer:0, explanation:"Future passive → 'will be written'." },
+  { sentence: "They were planting trees.", chapter:"Voice", options:["Trees were being planted by them.","Trees are being planted by them.","Trees have been planted by them.","Trees will be planted by them."], answer:0, explanation:"Past continuous passive → 'were being planted'." },
+  { sentence: "She has painted a picture.", chapter:"Voice", options:["A picture has been painted by her.","A picture is painted by her.","A picture was painted by her.","A picture will be painted by her."], answer:0, explanation:"Present perfect passive → 'has been painted'." },
+  { sentence: "The company will launch a new product.", chapter:"Voice", options:["A new product will be launched by the company.","A new product is launched by the company.","A new product was launched by the company.","A new product has been launched by the company."], answer:0, explanation:"Future passive → 'will be launched'." },
+  { sentence: "They have repaired the road.", chapter:"Voice", options:["The road has been repaired by them.","The road was repaired by them.","The road is repaired by them.","The road will be repaired by them."], answer:0, explanation:"Present perfect passive → 'has been repaired'." },
+  { sentence: "He is reading a book.", chapter:"Voice", options:["A book is being read by him.","A book was read by him.","A book will be read by him.","A book has been read by him."], answer:0, explanation:"Present continuous passive → 'is being read'." },
+  { sentence: "Someone has stolen my purse.", chapter:"Voice", options:["My purse has been stolen.","My purse is stolen.","My purse was stolen.","My purse will be stolen."], answer:0, explanation:"Present perfect passive → 'has been stolen'." },
+  { sentence: "They will announce the results tomorrow.", chapter:"Voice", options:["The results will be announced tomorrow.","The results are announced tomorrow.","The results were announced tomorrow.","The results have been announced tomorrow."], answer:0, explanation:"Future passive → 'will be announced'." },
+  { sentence: "He helps the poor.", chapter:"Voice", options:["The poor are helped by him.","The poor were helped by him.","The poor will be helped by him.","The poor have been helped by him."], answer:0, explanation:"Simple present passive → 'are helped'." },
+  { sentence: "The police caught the thief.", chapter:"Voice", options:["The thief was caught by the police.","The thief is caught by the police.","The thief has been caught by the police.","The thief will be caught by the police."], answer:0, explanation:"Simple past passive → 'was caught'." },
+  { sentence: "They are making arrangements.", chapter:"Voice", options:["Arrangements are being made.","Arrangements were made.","Arrangements have been made.","Arrangements will be made."], answer:0, explanation:"Present continuous passive → 'are being made'." },
+  { sentence: "The gardener waters the plants every morning.", chapter:"Voice", options:["The plants are watered every morning.","The plants were watered every morning.","The plants will be watered every morning.","The plants have been watered every morning."], answer:0, explanation:"Simple present passive → 'are watered'." },
+  { sentence: "He wrote a poem.", chapter:"Voice", options:["A poem was written by him.","A poem is written by him.","A poem has been written by him.","A poem will be written by him."], answer:0, explanation:"Simple past passive → 'was written'." },
+  { sentence: "She will bake a cake.", chapter:"Voice", options:["A cake will be baked by her.","A cake is baked by her.","A cake was baked by her.","A cake has been baked by her."], answer:0, explanation:"Future passive → 'will be baked'." },
+  { sentence: "He has opened the door.", chapter:"Voice", options:["The door has been opened by him.","The door was opened by him.","The door will be opened by him.","The door is opened by him."], answer:0, explanation:"Present perfect passive → 'has been opened'." },
+  { sentence: "She is watching a movie.", chapter:"Voice", options:["A movie is being watched by her.","A movie was watched by her.","A movie has been watched by her.","A movie will be watched by her."], answer:0, explanation:"Present continuous passive → 'is being watched'." },
+  { sentence: "They cleaned the floor.", chapter:"Voice", options:["The floor was cleaned by them.","The floor is cleaned by them.","The floor will be cleaned by them.","The floor has been cleaned by them."], answer:0, explanation:"Simple past passive → 'was cleaned'." },
+  { sentence: "He has written many books.", chapter:"Voice", options:["Many books have been written by him.","Many books are written by him.","Many books were written by him.","Many books will be written by him."], answer:0, explanation:"Present perfect passive → 'have been written'." },
+  { sentence: "She will sing a song.", chapter:"Voice", options:["A song will be sung by her.","A song is sung by her.","A song was sung by her.","A song has been sung by her."], answer:0, explanation:"Future passive → 'will be sung'." },
+  { sentence: "They are repairing the car.", chapter:"Voice", options:["The car is being repaired by them.","The car was repaired by them.","The car has been repaired by them.","The car will be repaired by them."], answer:0, explanation:"Present continuous passive → 'is being repaired'." },
+  { sentence: "He built a house.", chapter:"Voice", options:["A house was built by him.","A house is built by him.","A house has been built by him.","A house will be built by him."], answer:0, explanation:"Simple past passive → 'was built'." },
+  { sentence: "She has finished her work.", chapter:"Voice", options:["Her work has been finished by her.","Her work is finished by her.","Her work was finished by her.","Her work will be finished by her."], answer:0, explanation:"Present perfect passive → 'has been finished'." },
+  { sentence: "They are singing a song.", chapter:"Voice", options:["A song is being sung by them.","A song was sung by them.","A song has been sung by them.","A song will be sung by them."], answer:0, explanation:"Present continuous passive → 'is being sung'." },
+  { sentence: "He will drive the car tomorrow.", chapter:"Voice", options:["The car will be driven by him tomorrow.","The car is driven by him tomorrow.","The car was driven by him tomorrow.","The car has been driven by him tomorrow."], answer:0, explanation:"Future passive → 'will be driven'." },
+  { sentence: "They cleaned the house yesterday.", chapter:"Voice", options:["The house was cleaned yesterday.","The house is cleaned yesterday.","The house has been cleaned yesterday.","The house will be cleaned yesterday."], answer:0, explanation:"Simple past passive → 'was cleaned'." },
+  { sentence: "The company has launched a new app.", chapter:"Voice", options:["A new app has been launched by the company.","A new app was launched by the company.","A new app is launched by the company.","A new app will be launched by the company."], answer:0, explanation:"Present perfect passive → 'has been launched'." },
+  { sentence: "He is writing a letter.", chapter:"Voice", options:["A letter is being written by him.","A letter was written by him.","A letter has been written by him.","A letter will be written by him."], answer:0, explanation:"Present continuous passive → 'is being written'." },
+  { sentence: "They have opened the new mall.", chapter:"Voice", options:["The new mall has been opened by them.","The new mall was opened by them.","The new mall is opened by them.","The new mall will be opened by them."], answer:0, explanation:"Present perfect passive → 'has been opened'." },
+  { sentence: "She will wash the clothes tomorrow.", chapter:"Voice", options:["The clothes will be washed by her tomorrow.","The clothes are washed by her tomorrow.","The clothes were washed by her tomorrow.","The clothes have been washed by her tomorrow."], answer:0, explanation:"Future passive → 'will be washed'." },
+  { sentence:"I _______ know the correct answer.", chapter:"Verb Tense", options:["am not","don’t","doesn’t"], answer:1, explanation:"Simple present negative uses do not." },
+  { sentence:"They _______ agree with my opinion.", chapter:"Verb Tense", options:["are","don’t","aren’t"], answer:1, explanation:"Agree is a verb so use do not." },
+  { sentence:"Brenda usually __________ in front of the window during the class.", chapter:"Verb Tense", options:["sits","sitting","sit"], answer:0, explanation:"Adverb of frequency uses simple present." },
+  { sentence:"What does this word ________?", chapter:"Verb Tense", options:["means","meaning","mean"], answer:2, explanation:"Question with does takes base verb." },
+  { sentence:"He ______ do anything to help me.", chapter:"Verb Tense", options:["don’t do","isn’t","doesn’t"], answer:2, explanation:"He takes doesn’t." },
+  { sentence:"I come from Canada. Where ______ you come from?", chapter:"Verb Tense", options:["are","do","is"], answer:1, explanation:"Come is a verb so use do." },
+  { sentence:"Jane ____________ tea very often.", chapter:"Verb Tense", options:["doesn't drink","drink","isn't drink"], answer:0, explanation:"Negative simple present uses doesn’t + base verb." },
+  { sentence:"How often __________ you play tennis?", chapter:"Verb Tense", options:["do","is","are"], answer:0, explanation:"Question with main verb uses do." },
+  { sentence:"Rice _______ in cold climates.", chapter:"Verb Tense", options:["don't grow","aren't grow","doesn't grow"], answer:2, explanation:"Rice is singular so doesn’t grow." },
+  { sentence:"Vegetarians __________ meat.", chapter:"Verb Tense", options:["don't eat","aren't eat","doesn't eat"], answer:0, explanation:"Habitual action uses don’t." },
+  { sentence:"She ________ in New York, but prefers California.", chapter:"Verb Tense", options:["lives","goes","arrives"], answer:0, explanation:"State of residence uses lives." },
+  { sentence:"When we ________ on vacation, we never fly.", chapter:"Verb Tense", options:["are","go","went"], answer:1, explanation:"General truth uses simple present go." },
+  { sentence:"I ________ four languages, but I love English above all.", chapter:"Verb Tense", options:["talk","speak","talks"], answer:1, explanation:"Simple present: I speak." },
+  { sentence:"That dog always ________ with his head against the wall.", chapter:"Verb Tense", options:["goes","bark","sleeps"], answer:2, explanation:"Always + habitual action." },
+  { sentence:"We don't ________ which airport the plane goes from.", chapter:"Verb Tense", options:["know","think","like"], answer:0, explanation:"Correct verb is know." },
+  { sentence:"My girlfriend ________ her eyes when there's a horror movie on TV.", chapter:"Verb Tense", options:["open","shut","closes"], answer:2, explanation:"Simple present for habit." },
+  { sentence:"Kathy always ________ about the boss. She hates her job!", chapter:"Verb Tense", options:["says","tells","complains"], answer:2, explanation:"Complain is correct verb." },
+  { sentence:"She ________ to disco music, only tango.", chapter:"Verb Tense", options:["no listen","doesn’t listen","doesn’t like"], answer:1, explanation:"Negative of listen uses doesn’t listen." },
+  { sentence:"What ............................. for breakfast?", chapter:"Verb Tense", options:["do you usually have","are you usually having","do usually you have"], answer:0, explanation:"Habitual routine uses simple present." },
+  { sentence:"John always __________ on time for meetings.", chapter:"Verb Tense", options:["arrives","arrive","is arriving"], answer:0, explanation:"Always + simple present." },
+  { sentence:"What ................... ?", chapter:"Verb Tense", options:["means this word","is this word meaning","does this word mean"], answer:2, explanation:"Correct question form uses does + base verb." },
+  { sentence:"Barbara usually __________ dinner for her husband after work.", chapter:"Verb Tense", options:["cook","cooks","is cooking"], answer:1, explanation:"Usually + simple present." },
+  { sentence:"Mr. and Mrs. Parsons __________ to work together every day.", chapter:"Verb Tense", options:["drive","drives","are driving"], answer:0, explanation:"Plural subject uses drive." },
+  { sentence:"What .............. at the weekend?", chapter:"Verb Tense", options:["are you normally do","are you normally doing","do you normally do"], answer:2, explanation:"Simple present for routine." },
+  { sentence:"A: What ............................ ? B: She's an architect.", chapter:"Verb Tense", options:["is your sister doing","does your sister do","does your sister do"], answer:1, explanation:"Occupation uses simple present." },
+  { sentence:"My parents normally __________ breakfast at 7:00 a.m..", chapter:"Verb Tense", options:["has","have","are having"], answer:1, explanation:"Plural subject → have." },
+  { sentence:"I ................. your new coat!", chapter:"Verb Tense", options:["like","am liking","likes"], answer:0, explanation:"Like is a stative verb." },
+  { sentence:"My husband and his colleague __________ golf whenever they are not too busy.", chapter:"Verb Tense", options:["plays","play","are playing"], answer:1, explanation:"Plural subject → play." },
+  { sentence:"Does Rachel eat fish?", chapter:"Verb Tense", options:["Does she eat","Is she eating","Is she eat"], answer:0, explanation:"Habit question uses does." },
+  { sentence:"Do you always wear a tie to work?", chapter:"Verb Tense", options:["Are you always wearing","Do you always wear","Wear you always"], answer:1, explanation:"Simple present for habit." }
+  { sentence:"I ___________ about a yellow unicorn last night.", chapter:"Verb Tense", options:["dreamed","slept","think"], answer:0, explanation:"Past simple of dream is dreamed." },
+  { sentence:"Anna ___________ to class yesterday because she was at the hospital.", chapter:"Verb Tense", options:["didn't arrive","didn't take","didn't come"], answer:2, explanation:"Come to class is the correct verb." },
+  { sentence:"It was snowing last night. It ___________ so cold!", chapter:"Verb Tense", options:["touched","felt","happened"], answer:1, explanation:"Feel describes temperature." },
+  { sentence:"Lucy ___________ her mother's watch, so she bought a new one.", chapter:"Verb Tense", options:["broke","crashed","forgot"], answer:0, explanation:"Break fits the meaning." },
+  { sentence:"We ___________ at the library for three hours yesterday.", chapter:"Verb Tense", options:["learnt","studied","reviewed"], answer:1, explanation:"Study fits library context." },
+  { sentence:"I ___________ an e-mail to the company but they never answered.", chapter:"Verb Tense", options:["published","read","sent"], answer:2, explanation:"Correct past simple is sent." },
+  { sentence:"The two cousins ___________ at the airport for the first time.", chapter:"Verb Tense", options:["met","welcomed","saw"], answer:0, explanation:"Meet someone for the first time." },
+  { sentence:"The dog ___________ in the middle of the kitchen floor, looking at the door.", chapter:"Verb Tense", options:["put","ran","stood"], answer:2, explanation:"Stand describes still position." },
+  { sentence:"Mozart ___________ more than 600 pieces of music.", chapter:"Verb Tense", options:["writes","wrote","writed"], answer:1, explanation:"Past simple of write is wrote." },
+  { sentence:"We _______ David in town a few days ago.", chapter:"Verb Tense", options:["did see","saw","was saw"], answer:1, explanation:"Simple past saw." },
+  { sentence:"It was cold, so I _____________ the window.", chapter:"Verb Tense", options:["shut","was shut","shutted"], answer:0, explanation:"Correct past simple is shut." },
+  { sentence:"I ___________ to the cinema three times last week.", chapter:"Verb Tense", options:["was go","did go","went"], answer:2, explanation:"Went is the correct past simple." },
+  { sentence:"What __________ you _________ last weekend?", chapter:"Verb Tense", options:["were / do","did / did","did / do"], answer:2, explanation:"Correct past question is did + base form." },
+  { sentence:"The police ___________ me on my way home last night.", chapter:"Verb Tense", options:["was stop","stopped","stops"], answer:1, explanation:"Past simple stopped." },
+  { sentence:"The film wasn't very good. I _____________ it very much.", chapter:"Verb Tense", options:["enjoyed","wasn't enjoy","didn't enjoy"], answer:2, explanation:"Negative past uses didn't enjoy." },
+  { sentence:"The bed was very uncomfortable. I ____________ sleep very well.", chapter:"Verb Tense", options:["didn't","did","wasn't"], answer:0, explanation:"Negative past uses didn't + verb." },
+  { sentence:"The window was open and a bird ___________ into the room.", chapter:"Verb Tense", options:["fly","flew","did fly"], answer:1, explanation:"Correct past simple is flew." },
+  { sentence:"I __________ a lot of money yesterday. I __________ an expensive dress.", chapter:"Verb Tense", options:["spend / buy","spent / buy","spent / bought"], answer:2, explanation:"Both verbs must be in past." },
+  { sentence:"He __ soccer yesterday.", chapter:"Verb Tense", options:["did play","plaid","played"], answer:2, explanation:"Played is correct past simple." },
+  { sentence:"I __ 50m last week.", chapter:"Verb Tense", options:["swam","swum","swimmed"], answer:0, explanation:"Past simple is swam." },
+  { sentence:"She __ too much chocolate.", chapter:"Verb Tense", options:["eated","ated","ate"], answer:2, explanation:"Past simple is ate." },
+  { sentence:"Who __ the match?", chapter:"Verb Tense", options:["wan","wun","won"], answer:2, explanation:"Past simple is won." },
+  { sentence:"I __ here last year as well.", chapter:"Verb Tense", options:["came","comed","come"], answer:0, explanation:"Past simple is came." },
+  { sentence:"John __ to New York last month.", chapter:"Verb Tense", options:["goed","went","going"], answer:1, explanation:"Past simple is went." },
+  { sentence:"I ___ to Tom last night.", chapter:"Verb Tense", options:["writed","wroted","wrote"], answer:2, explanation:"Past simple of write is wrote." },
+  { sentence:"Mary __ TV all day!", chapter:"Verb Tense", options:["watched","watch","watching"], answer:0, explanation:"Past simple watched." },
+  { sentence:"He __ very fast in the race this morning.", chapter:"Verb Tense", options:["ran","run","runs"], answer:0, explanation:"Past simple of run is ran." },
+  { sentence:"She __ the newspaper on the train.", chapter:"Verb Tense", options:["read","readed","red"], answer:0, explanation:"Read (pronounced red) is correct spelling." },
+  { sentence:"What film ... you ... last night?", chapter:"Verb Tense", options:["did, saw","did, see","-, saw"], answer:1, explanation:"Correct structure is did + base verb." },
+  { sentence:"I ... TV yesterday.", chapter:"Verb Tense", options:["watched","watched","watch"], answer:0, explanation:"Past simple watched." }
+  { sentence:"What __________ when you leave university? I want to go back to London.", chapter:"Verb Tense", options:["do you do","will you do","are you doing"], answer:1, explanation:"Future decision uses will." },
+  { sentence:"If the plane gets in late I __________ my train connection.", chapter:"Verb Tense", options:["am missing","will miss","miss"], answer:1, explanation:"Future result uses will." },
+  { sentence:"It's half past eight and my train leaves in fifteen minutes. I __________.", chapter:"Verb Tense", options:["will be","was late","am being late"], answer:0, explanation:"Prediction about the future uses will be." },
+  { sentence:"I've had twenty replies to the invitations I sent out, so I know twenty people __________.", chapter:"Verb Tense", options:["definitely come","will definitely come","come"], answer:1, explanation:"Future certainty uses will." },
+  { sentence:"I'm sure you __________ a lot better after a good night's sleep.", chapter:"Verb Tense", options:["are feeling","will feel","was feeling"], answer:1, explanation:"Prediction uses will feel." },
+  { sentence:"Oh, no! I've spilt my wine. Don't worry. __________ a cloth to wipe it up.", chapter:"Verb Tense", options:["I get","I got","I'll get"], answer:2, explanation:"Spontaneous offer uses will." },
+  { sentence:"The plane doesn't leave until tomorrow afternoon, so I __________ the cases in the morning.", chapter:"Verb Tense", options:["pack","will pack","don’t pack"], answer:1, explanation:"Planned future action uses will." },
+  { sentence:"Can I come round after dinner? Yes, that's fine. I __________ anything.", chapter:"Verb Tense", options:["won't do","don't do","didn't do"], answer:0, explanation:"Future negative uses won’t." },
+  { sentence:"The match doesn't start till 9 o'clock, so we __________ a drink first.", chapter:"Verb Tense", options:["will have","are having","had"], answer:0, explanation:"Future plan expressed with will." },
+  { sentence:"At the beginning of next month we __________ married for ten years.", chapter:"Verb Tense", options:["will be","did","are being"], answer:0, explanation:"Future perfect state: will be married." },
+  { sentence:"The plane ——————– at 4.30 pm.", chapter:"Verb Tense", options:["arrive","has arrive","will arrive"], answer:2, explanation:"Future scheduled arrival uses will arrive." },
+  { sentence:"I ——————-you when I come back.", chapter:"Verb Tense", options:["will call","call","calls"], answer:0, explanation:"Future promise uses will call." },
+  { sentence:"We ——————– the Smiths this evening.", chapter:"Verb Tense", options:["visit","visits","will visit"], answer:2, explanation:"Planned arrangement uses will visit." },
+  { sentence:"Look at the sky. I think ——————– rain.", chapter:"Verb Tense", options:["will rain","would rain","was going to"], answer:0, explanation:"Prediction uses will." },
+  { sentence:"The train ———————- before we reach the station.", chapter:"Verb Tense", options:["arrive","would arrive","will arrive"], answer:2, explanation:"Future event uses will." },
+  { sentence:"Perhaps we ——————— our grandparents this week.", chapter:"Verb Tense", options:["will visit","visit","visited"], answer:0, explanation:"Uncertain possibility uses will." },
+  { sentence:"The next term ———————- on 16th September.", chapter:"Verb Tense", options:["begin","will begin","has begun"], answer:1, explanation:"Scheduled future uses will begin." },
+  { sentence:"I am sure he ——————", chapter:"Verb Tense", options:["come","will come","has came"], answer:1, explanation:"Prediction uses will come." },
+  { sentence:"I ——————– you one of these days.", chapter:"Verb Tense", options:["would see","will see","see"], answer:1, explanation:"Future intention uses will see." },
+  { sentence:"Hurry up! The program ———————", chapter:"Verb Tense", options:["will start","would start","starts"], answer:0, explanation:"Future starting uses will start." },
+  { sentence:"I _________________ my friends for dinner after work tomorrow.", chapter:"Verb Tense", options:["will meet","was meeting","meet"], answer:0, explanation:"Future plan uses will meet." },
+  { sentence:"I haven't made any plans for Easter. I____________ in Hong Kong.", chapter:"Verb Tense", options:["am going to stay","will probably stay","stay"], answer:1, explanation:"Unplanned future or uncertainty uses will probably." },
+  { sentence:"The phone’s ringing. OK, I_______________ it.", chapter:"Verb Tense", options:["'ll answer","answer","have answered"], answer:0, explanation:"Spontaneous action uses will." },
+  { sentence:"I________________ for my exam on Sunday afternoon.", chapter:"Verb Tense", options:["will revise","am revising","have revised"], answer:1, explanation:"Fixed future arrangement uses present continuous." },
+  { sentence:"I _______________ to London tomorrow night.", chapter:"Verb Tense", options:["flew","fly","will fly"], answer:2, explanation:"Planned travel uses will fly." },
+  { sentence:"I_____________________ home after this lesson.", chapter:"Verb Tense", options:["go","went","will go"], answer:2, explanation:"Future intention uses will go." },
+  { sentence:"OK, so it's 8.30, Central MTR station by the Hang Seng Bank. I___________ you tomorrow. Bye!", chapter:"Verb Tense", options:["am seeing","will see","saw"], answer:1, explanation:"Appointment confirmation uses will see." },
+  { sentence:"______________ you help me? Yes, sure.", chapter:"Verb Tense", options:["Have","Will","Do"], answer:1, explanation:"Will is used for requests." },
+  { sentence:"Can you lend me five hundred dollars? I __________ you back on Friday.", chapter:"Verb Tense", options:["will pay","paid","am paying"], answer:0, explanation:"Promise uses will pay." },
+  { sentence:"__________________ get married before you're 30?", chapter:"Verb Tense", options:["Will you","do you","have you"], answer:0, explanation:"Future question uses will." }
+  { sentence:"I am _______ a sandwich now.", chapter:"Verb Tense", options:["eats","eating","not eat"], answer:1, explanation:"Present continuous uses am + verb-ing." },
+  { sentence:"I am busy right now. I _______ breakfast.", chapter:"Verb Tense", options:["am have","am having","have"], answer:1, explanation:"Present continuous for something happening now." },
+  { sentence:"My daughter _________ studying English at Istanbul University.", chapter:"Verb Tense", options:["is","does","do"], answer:0, explanation:"Present continuous uses is + verb-ing." },
+  { sentence:"_____ you waiting for a bus?", chapter:"Verb Tense", options:["Do","Are","Is"], answer:1, explanation:"Question in present continuous uses are." },
+  { sentence:"What _____________? It looks awful.", chapter:"Verb Tense", options:["do you drinking","are you drink","are you drinking"], answer:2, explanation:"Present continuous question uses are + verb-ing." },
+  { sentence:"We ________ enjoying our holiday here so much.", chapter:"Verb Tense", options:["don't","are","is"], answer:1, explanation:"Present continuous uses are + verb-ing." },
+  { sentence:"What _____ John ___________ at the moment?", chapter:"Verb Tense", options:["does / do","is / do","is / doing"], answer:2, explanation:"Present continuous question format." },
+  { sentence:"I ___________ sitting down at the moment.", chapter:"Verb Tense", options:["am not","are not","don't"], answer:0, explanation:"Negative present continuous uses am not." },
+  { sentence:"Don't disturb him. He __________.", chapter:"Verb Tense", options:["sleeps","is sleeping","is sleep"], answer:1, explanation:"Right now → present continuous." },
+  { sentence:"They are ___________ their coats.", chapter:"Verb Tense", options:["put on","putting on","doesn't put"], answer:1, explanation:"Present continuous uses verb-ing." },
+  { sentence:"She _____ at a very luxurious hotel now.", chapter:"Verb Tense", options:["stays","is staying","stayed"], answer:1, explanation:"Temporary action uses present continuous." },
+  { sentence:"_____ we going to the movies tonight?", chapter:"Verb Tense", options:["Are","Does","Is"], answer:0, explanation:"Present continuous question uses are." },
+  { sentence:"What are you doing here? I am _____ a magazine.", chapter:"Verb Tense", options:["reads","reading","is reading"], answer:1, explanation:"Present continuous uses reading." },
+  { sentence:"The negative of Jill is reading now is _____.", chapter:"Verb Tense", options:["Jill doesn’t reading now","Jill isn’t reading now.","Jill aren’t reading now."], answer:1, explanation:"Correct negative uses isn’t + verb-ing." },
+  { sentence:"Helen _____ playing volley ball.", chapter:"Verb Tense", options:["are","isn’t","am"], answer:1, explanation:"Negative present continuous uses isn’t." },
+  { sentence:"The girl _____.", chapter:"Verb Tense", options:["isn't sleeping","is sleeps","can’t sleeping"], answer:0, explanation:"Negative present continuous uses isn’t + verb-ing." },
+  { sentence:"What _____ Linda and Tom doing?", chapter:"Verb Tense", options:["are","is","can"], answer:0, explanation:"Plural subject uses are." },
+  { sentence:"_____ reading a book?", chapter:"Verb Tense", options:["Is she","Does she","Do she"], answer:0, explanation:"Question of continuous uses is she." },
+  { sentence:"Is she _____?", chapter:"Verb Tense", options:["is sitting","from","sitting"], answer:2, explanation:"Complement needs verb-ing." },
+  { sentence:"_____ running?", chapter:"Verb Tense", options:["He is","Is he","Does he"], answer:1, explanation:"Correct question form is Is he running?" },
+  { sentence:"Is _____ standing?", chapter:"Verb Tense", options:["they","he is","he"], answer:2, explanation:"Correct subject pronoun is he." },
+  { sentence:"We are awake. We _____ sleeping.", chapter:"Verb Tense", options:["aren’t","isn’t","don’t"], answer:0, explanation:"Negative continuous uses aren’t." },
+  { sentence:"The machines _____ working today.", chapter:"Verb Tense", options:["don’t","aren’t","isn’t"], answer:1, explanation:"Plural subject → aren’t working." },
+  { sentence:"They _____ swimming. They’re walking home.", chapter:"Verb Tense", options:["want","don’t","aren’t"], answer:2, explanation:"Negative continuous uses aren’t + verb-ing." },
+  { sentence:"We are unhappy. We _____ smiling.", chapter:"Verb Tense", options:["don’t","aren’t","isn’t"], answer:1, explanation:"Negative continuous uses aren’t smiling." },
+  { sentence:"The train _____ at 6:00.", chapter:"Verb Tense", options:["arrive","is arriving","are arriving"], answer:1, explanation:"Scheduled future often uses present continuous." },
+  { sentence:"Yukiko _____ shopping tomorrow.", chapter:"Verb Tense", options:["is thinking","go","is going"], answer:2, explanation:"Future arrangement uses is going." },
+  { sentence:"They _____ lunch tomorrow.", chapter:"Verb Tense", options:["are having","eats","eating"], answer:0, explanation:"Present continuous for planned event." },
+  { sentence:"_____ Betty reading a book?", chapter:"Verb Tense", options:["Is","Are","Does"], answer:0, explanation:"Correct question uses Is Betty...?" },
+  { sentence:"_____ running?", chapter:"Verb Tense", options:["He is","Is he","Does he"], answer:1, explanation:"Correct question → Is he running?" }
+  ];
+
+/* ======= Game state ======= */
+let qIndex = 0;
+let score = 0;
+let running = false;
+let selected = null;
+// Timer removed: no countdown functionality
+
+// Track performance per grammar chapter. chapterStats is an object
+// keyed by chapter name with {correct:0,total:0}. It is initialized
+// in startGame() and updated in submitAnswer() and when skipping.
+let chapterStats = {};
+
+// gameQuestions will hold a random subset of questions for each game (fixed number)
+let gameQuestions = [];
+
+// Store last game results to regenerate certificate with updated details
+let lastFinalPctVal = 0;
+let lastExcellentChapters = [];
+let lastNeedsWorkChapters = [];
+
+/* ======= DOM ======= */
+const sentenceEl = document.getElementById('sentence');
+const optionsEl = document.getElementById('options');
+// const timerEl = document.getElementById('timer'); // timer element removed
+const feedbackEl = document.getElementById('feedback');
+const submitBtn = document.getElementById('submitBtn');
+const skipBtn = document.getElementById('skipBtn');
+const startBtn = document.getElementById('startBtn');
+// const resetBtn = document.getElementById('resetBtn'); // removed: no reset button
+const qIndexEl = document.getElementById('qIndex');
+const qTotalEl = document.getElementById('qTotal');
+const progressBar = document.getElementById('progressBar');
+const currentScoreEl = document.getElementById('currentScore');
+// bestScoreEl removed: no best score display
+const hallEl = document.getElementById('hall');
+const showHofBtn = document.getElementById('showHofBtn');
+const hofListEl = document.getElementById('hofList');
+const saveHofBtn = document.getElementById('saveHofBtn');
+const downloadHofBtn = document.getElementById('downloadHofBtn');
+const hofNameInput = document.getElementById('hofName');
+const certCanvas = document.getElementById('certificate');
+const certDownloadLink = document.getElementById('certDownloadLink');
+
+// const BEST_KEY = 'grammarGuardianBest'; // removed best score storage key
+const HOF_KEY = 'grammarGuardianHOF';
+const HOF_THRESHOLD = 60; // percent threshold to qualify for HOF
+
+/* ======= Helpers ======= */
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]] } }
+// Timer removed: clearTimer is now a no-op
+function clearTimer(){ }
+// Provide positive remarks based on percentage to encourage players
+function getRemark(pct){
+  if(pct >= 90) return 'Outstanding performance! Keep it up!';
+  if(pct >= 75) return 'Great job! Keep practicing.';
+  if(pct >= 50) return 'Good effort! You\'re getting there.';
+  if(pct > 0) return 'Nice try! Keep learning and you\'ll improve.';
+  return 'Give it another shot, and keep practicing!';
+}
+// Removed getBest() and setBest() – no longer tracking best score
+
+/* ======= Render ======= */
+function renderQuestion(){
+  if(qIndex >= gameQuestions.length){ endGame(); return; }
+  selected = null;
+  feedbackEl.textContent = '';
+  const q = gameQuestions[qIndex];
+  sentenceEl.textContent = q.sentence;
+  optionsEl.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'opt';
+    btn.tabIndex = 0;
+    btn.textContent = opt;
+    btn.addEventListener('click', ()=> selectOption(i, btn));
+    btn.addEventListener('keydown', (e)=> { if(e.key==='Enter' || e.key===' ') selectOption(i, btn) });
+    optionsEl.appendChild(btn);
+  });
+  qIndexEl.textContent = qIndex+1;
+  qTotalEl.textContent = gameQuestions.length;
+  updateProgress();
+  // Timer removed: no countdown per question
+}
+
+function selectOption(i, el){
+  document.querySelectorAll('.opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  selected = i;
+  feedbackEl.textContent = '';
+}
+
+/* ======= Timer ======= */
+// Timer removed: startTimer is now a no-op
+function startTimer(seconds){ }
+
+/* ======= Score Helpers ======= */
+function calculatePercentage(){
+  // percentage based on number of questions attempted (qIndex + 1) and correct answers (score)
+  const attempted = Math.min(qIndex + 1, gameQuestions.length);
+  if(attempted === 0) return 0;
+  return (score / attempted) * 100;
+}
+
+function updateScoreDisplay(){
+  const pct = calculatePercentage();
+  // display percentage with 0 decimal for brevity
+  // show number of attempted questions (qIndex+1)
+  const attempted = Math.min(qIndex + 1, gameQuestions.length);
+  currentScoreEl.textContent = `${pct.toFixed(0)}% (${score}/${attempted})`;
+}
+
+/* ======= Submit / scoring ======= */
+function submitAnswer(){
+  if(!running) return;
+  const q = gameQuestions[qIndex];
+  if(selected === null){ feedbackEl.textContent = 'Please choose an option or Skip.'; return; }
+  // Timer removed: nothing to clear
+  const opts = document.querySelectorAll('.opt');
+  opts.forEach((el, idx)=>{
+    if(idx === q.answer) el.classList.add('correct');
+    if(idx === selected && idx !== q.answer) el.classList.add('wrong');
+  });
+  if(selected === q.answer){
+    score++;
+    feedbackEl.textContent = '✅ Correct! +1';
+    feedbackEl.style.color = '#0b6';
+    // update chapter stats: increment correct and total for this chapter
+    const chapter = q.chapter;
+    if(chapterStats[chapter]){
+      chapterStats[chapter].correct++;
+      chapterStats[chapter].total++;
+    }
+  } else {
+    feedbackEl.textContent = '❌ Incorrect. ' + q.explanation;
+    feedbackEl.style.color = '#b22222';
+    // update chapter stats: incorrect answer counts toward total only
+    const chapter = q.chapter;
+    if(chapterStats[chapter]){
+      chapterStats[chapter].total++;
+    }
+  }
+  // update display
+  updateScoreDisplay();
+  // best score tracking removed
+
+  // move to next after delay
+  setTimeout(()=> {
+    qIndex++;
+    if(qIndex < gameQuestions.length) renderQuestion(); else endGame();
+  }, 1300);
+}
+
+// Timer removed: autoSubmit is no longer used
+function autoSubmit(){ }
+
+function updateProgress(){
+  const pct = Math.round((qIndex / gameQuestions.length) * 100);
+  progressBar.style.width = pct + '%';
+}
+
+/* ======= Game flow ======= */
+function startGame(){
+  // pick a random subset of 20 questions for this session
+  const shuffled = [...questions];
+  shuffle(shuffled);
+  gameQuestions = shuffled.slice(0, 10);
+  qIndex = 0;
+  score = 0;
+  running = true;
+  currentScoreEl.textContent = '0% (0/0)';
+  feedbackEl.textContent = '';
+  // initialize chapterStats using selected game questions
+  chapterStats = {};
+  gameQuestions.forEach(q => {
+    if(!chapterStats[q.chapter]){
+      chapterStats[q.chapter] = { correct: 0, total: 0 };
+    }
+  });
+  // update total questions display
+  qTotalEl.textContent = gameQuestions.length;
+  renderQuestion();
+}
+
+function endGame(){
+  running = false;
+  // Timer removed: nothing to clear
+  // compute final percentage out of the number of selected questions
+  const finalPctVal = (score / gameQuestions.length) * 100;
+  const finalPct = finalPctVal.toFixed(0);
+  const remark = getRemark(finalPctVal);
+  feedbackEl.style.color = '#333';
+  // Build summary of strengths and weaknesses per chapter
+  const excellent = [];
+  const needsWork = [];
+  for(const chap in chapterStats){
+    const stats = chapterStats[chap];
+    if(stats.total > 0){
+      const acc = stats.correct / stats.total;
+      if(acc >= 0.7) excellent.push(chap);
+      else if(acc <= 0.5) needsWork.push(chap);
+    } else {
+      // no attempts means user hasn't practiced this chapter
+      needsWork.push(chap);
+    }
+  }
+  let summaryMessage = '';
+  if(excellent.length > 0){
+    summaryMessage += ` Excellent in: ${excellent.join(', ')}.`;
+  }
+  if(needsWork.length > 0){
+    summaryMessage += ` Needs more focus on: ${needsWork.join(', ')}.`;
+  }
+  feedbackEl.textContent = `Game over — you scored ${finalPct}% (${score}/${gameQuestions.length}). ${remark}${summaryMessage}`;
+  // if qualifies for HOF prompt (percent threshold)
+  if(finalPctVal >= HOF_THRESHOLD){
+    alert('Great job! You qualify for the Hall of Fame. Enter your name and press Save in the Hall of Fame panel.');
+    hallEl.classList.remove('hidden');
+    populateHOF(); // show local top10
+  }
+  // generate certificate automatically for convenience
+  // pass the numeric percentage to certificate generator
+  // store results for certificate regeneration
+  lastFinalPctVal = finalPctVal;
+  lastExcellentChapters = excellent;
+  lastNeedsWorkChapters = needsWork;
+  // generate initial certificate with current details
+  generateCertificate(finalPctVal, excellent, needsWork);
+}
+
+/* ======= Hall of Fame (localStorage only) ======= */
+function loadHOF(){ try{ return JSON.parse(localStorage.getItem(HOF_KEY) || '[]') }catch(e){ return [] } }
+function saveHOF(list){ localStorage.setItem(HOF_KEY, JSON.stringify(list)); }
+
+function populateHOF(){
+  hofListEl.innerHTML = '';
+  const list = loadHOF().sort((a,b)=> b.score - a.score).slice(0,10);
+  if(list.length === 0){
+    hofListEl.innerHTML = '<div style="padding:8px;color:#666">No entries yet</div>';
+    return;
+  }
+  list.forEach((it, idx) => {
+    const div = document.createElement('div');
+    div.className = 'hof-item';
+    div.innerHTML = `<div>${idx+1}. ${escapeHtml(it.name)}</div><div>${it.score.toFixed(0)}%</div>`;
+    hofListEl.appendChild(div);
+  });
+}
+
+/* Save HOF entry locally */
+function saveMyHOFEntry(){
+  const name = (hofNameInput.value || 'Anonymous').trim();
+  if(!name){ alert('Enter a name first'); return; }
+  const percentage = ((score / gameQuestions.length) * 100);
+  // save locally
+  const list = loadHOF();
+  list.push({ name, score: percentage });
+  saveHOF(list);
+  populateHOF();
+  alert('Saved to Hall of Fame.');
+}
+
+/* Download Hall of Fame data as JSON */
+function downloadHOFData(){
+  const data = JSON.stringify(loadHOF(), null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hall_of_fame.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ======= Certificate generation (canvas) ======= */
+function generateCertificate(finalPctVal, excellentChapters = [], needsWorkChapters = []){
+  const ctx = certCanvas.getContext('2d');
+  // clear canvas
+  ctx.clearRect(0,0,certCanvas.width,certCanvas.height);
+  // background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,certCanvas.width,certCanvas.height);
+  // border
+  ctx.strokeStyle = '#2b6cb0';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(30,30,certCanvas.width-60,certCanvas.height-60);
+  // Fetch name, class, and section from inputs for the certificate
+  const nameInput = document.getElementById('playerName');
+  const classInput = document.getElementById('playerClass');
+  const sectionInput = document.getElementById('playerSection');
+  // Try to get the player's name from the dedicated input; fall back to the Hall of Fame name input if blank.
+  let nameVal = '';
+  if(nameInput && nameInput.value){
+    nameVal = nameInput.value;
+  }
+  if(!nameVal){
+    const hofNameEl = document.getElementById('hofName');
+    if(hofNameEl && hofNameEl.value){
+      nameVal = hofNameEl.value;
+    }
+  }
+  if(!nameVal){
+    nameVal = 'Player';
+  }
+  const name = nameVal.toUpperCase();
+  const classVal = classInput && classInput.value ? classInput.value : '';
+  const sectionVal = sectionInput && sectionInput.value ? sectionInput.value : '';
+
+  // header with institution name, centered
+  ctx.fillStyle = '#2b6cb0';
+  ctx.font = '40px Georgia';
+  let text = 'Gtk Tenses and Voices Test';
+  let metrics = ctx.measureText(text);
+  let x = (certCanvas.width - metrics.width) / 2;
+  ctx.fillText(text, x, 100);
+  // title (larger), centered
+  ctx.font = '60px Georgia';
+  text = 'Certificate of Achievement';
+  metrics = ctx.measureText(text);
+  x = (certCanvas.width - metrics.width) / 2;
+  ctx.fillText(text, x, 170);
+  // subtitle (centered as well)
+  ctx.fillStyle = '#333';
+  ctx.font = '32px Arial';
+  text = 'This certifies that';
+  metrics = ctx.measureText(text);
+  x = (certCanvas.width - metrics.width) / 2;
+  ctx.fillText(text, x, 230);
+  // name (bold, left aligned at 90)
+  ctx.font = 'bold 46px Arial';
+  ctx.fillStyle = '#0b6';
+  ctx.fillText(name, 90, 290);
+  // class and section line
+  ctx.font = '24px Arial';
+  ctx.fillStyle = '#333';
+  let classSectionLine = '';
+  if(classVal){ classSectionLine += `Class: ${classVal}`; }
+  if(sectionVal){
+    if(classSectionLine) classSectionLine += '   ';
+    classSectionLine += `Section: ${sectionVal}`;
+  }
+  if(classSectionLine){
+    ctx.fillText(classSectionLine, 90, 330);
+  }
+  // score line
+  const pctRounded = finalPctVal.toFixed(0);
+  ctx.font = '24px Arial';
+  ctx.fillStyle = '#333';
+  ctx.fillText(`scored ${pctRounded}% (${score}/${gameQuestions.length}) in Grammar Guardian`, 90, classSectionLine ? 370 : 340);
+  // remark line
+  const remark = getRemark(finalPctVal);
+  ctx.font = '20px Arial';
+  ctx.fillStyle = '#555';
+  // position remark below previous line
+  const remarkY = classSectionLine ? 410 : 380;
+  ctx.fillText(remark, 90, remarkY);
+  // strengths/weakness lines (wrap text if necessary)
+  const messages = [];
+  if(excellentChapters.length > 0){
+    messages.push('Excellent in: ' + excellentChapters.join(', ') + '.');
+  }
+  if(needsWorkChapters.length > 0){
+    messages.push('Needs more focus on: ' + needsWorkChapters.join(', ') + '.');
+  }
+  ctx.font = '20px Arial';
+  ctx.fillStyle = '#444';
+  // wrap text to fit within 800px width
+  const maxWidth = certCanvas.width - 180;
+  // Start drawing strengths/weakness messages below the remark
+  let y = remarkY + 40;
+  messages.forEach(msg => {
+    const words = msg.split(' ');
+    let line = '';
+    words.forEach(word => {
+      const testLine = line + word + ' ';
+      const metrics = ctx.measureText(testLine);
+      if(metrics.width > maxWidth){
+        ctx.fillText(line.trim(), 90, y);
+        y += 30;
+        line = word + ' ';
+      } else {
+        line = testLine;
+      }
+    });
+    if(line){
+      ctx.fillText(line.trim(), 90, y);
+      y += 30;
+    }
+  });
+  // date
+  const d = new Date().toLocaleDateString();
+  ctx.font = '18px Arial';
+  ctx.fillStyle = '#666';
+  ctx.fillText(`Date: ${d}`, 90, certCanvas.height - 80);
+  // convert to data URL and set download link. Using data URL ensures the
+  // certificate can be downloaded without internet connection or revoked objects.
+  const dataURL = certCanvas.toDataURL('image/png');
+  certDownloadLink.href = dataURL;
+  certDownloadLink.style.display = 'inline-block';
+}
+
+/* ======= Utilities ======= */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, (m) => {
+    const map = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return map[m];
+  });
+}
+
+/* ======= Events ======= */
+submitBtn.addEventListener('click', ()=> submitAnswer());
+skipBtn.addEventListener('click', ()=> {
+  if(!running) return;
+  // update chapter stats for skipped question
+  const q = gameQuestions[qIndex];
+  const chapter = q.chapter;
+  if(chapterStats[chapter]){
+    chapterStats[chapter].total++;
+  }
+  qIndex++;
+  // update score display to reflect attempted question increase (score unchanged)
+  updateScoreDisplay();
+  if(qIndex < gameQuestions.length){
+    renderQuestion();
+  } else {
+    endGame();
+  }
+});
+startBtn.addEventListener('click', ()=> { hallEl.classList.add('hidden'); startGame(); });
+// reset button removed – no event needed
+showHofBtn.addEventListener('click', ()=> { hallEl.classList.toggle('hidden'); if(!hallEl.classList.contains('hidden')) populateHOF(); });
+saveHofBtn.addEventListener('click', saveMyHOFEntry);
+// downloadHofBtn removed: no event binding
+
+/* ======= Initialize UI ======= */
+(function init(){
+  // display the fixed number of questions (20) before the game starts
+  qTotalEl.textContent = 20;
+  currentScoreEl.textContent = '0% (0/0)';
+  optionsEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') submitAnswer(); });
+  // hide certificate download link until generated
+  certDownloadLink.style.display = 'none';
+  // regenerate certificate on download click to reflect current name/class/section
+  certDownloadLink.addEventListener('click', function(){
+    if(lastFinalPctVal !== undefined){
+      generateCertificate(lastFinalPctVal, lastExcellentChapters, lastNeedsWorkChapters);
+    }
+  });
+  populateHOF();
+})();
+</script>
+</body>
+</html>
